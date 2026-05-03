@@ -1,0 +1,1 @@
+review the documentation in the planning folder @ARGUMENTS and add questions, clarifications, and feedback to a new section at end. along with any opportunity to simplify.
