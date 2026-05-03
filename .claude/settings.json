@@ -4,6 +4,9 @@
     "context7@claude-plugins-official": true,
     "playwright@claude-plugins-official": true
   },
+  "sandbox": {
+    "enabled": false
+  },
   "hooks": {
     "Stop": [
       {
