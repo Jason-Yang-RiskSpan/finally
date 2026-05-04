@@ -1,0 +1,43 @@
+# Keep the build context lean.
+.git
+.github
+.claude
+planning
+test
+scripts
+README.md
+LICENSE
+
+# Local env (image bakes nothing from .env; runtime supplies it via --env-file)
+.env
+.env.*
+!.env.example
+
+# Frontend artefacts that should be rebuilt inside the image
+frontend/node_modules
+frontend/.next
+frontend/out
+
+# Python caches
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/.venv
+backend/.venv
+
+# IDE / OS noise
+.vscode
+.idea
+.DS_Store
+
+# Local SQLite runtime files (volume-mounted at runtime)
+db/finally.db
+db/finally.db-journal
+db/finally.db-wal
+db/finally.db-shm
+
+# Test infra
+docker-compose.test.yml

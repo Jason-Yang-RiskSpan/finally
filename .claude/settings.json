@@ -7,6 +7,11 @@
   "sandbox": {
     "enabled": false
   },
+  "env": {
+    "CLAUDE_CODE_EXPERINMENTAL_AGENTTEAM": "1"
+  },
+  "teammateMode": "in-process",
+
   "hooks": {
     "Stop": [
       {

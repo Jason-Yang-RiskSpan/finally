@@ -1,0 +1,127 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background-color: #0d1117;
+  color: #e6edf3;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0d1117;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a2f3a;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a4150;
+}
+
+/* Price flash animations.
+ * The active class is applied for ~500ms then removed; the transition fades the
+ * background color back to transparent so consecutive flashes don't accumulate.
+ */
+.price-cell {
+  background-color: transparent;
+  transition: background-color 500ms ease-out;
+}
+.price-cell.flash-up {
+  background-color: rgba(22, 163, 74, 0.45);
+  transition: background-color 0ms;
+}
+.price-cell.flash-down {
+  background-color: rgba(239, 68, 68, 0.45);
+  transition: background-color 0ms;
+}
+
+/* Subtle scanline-ish texture for the panel headers */
+.panel {
+  background-color: #11151c;
+  border: 1px solid #2a2f3a;
+  border-radius: 6px;
+}
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #2a2f3a;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8b95a5;
+}
+
+.btn {
+  padding: 0.4rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  transition: filter 120ms ease-out, transform 80ms ease-out;
+}
+.btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn-buy {
+  background-color: #209dd7;
+  color: #0d1117;
+}
+.btn-sell {
+  background-color: #ef4444;
+  color: #0d1117;
+}
+.btn-submit {
+  background-color: #753991;
+  color: #fff;
+}
+
+.input {
+  background-color: #0d1117;
+  border: 1px solid #2a2f3a;
+  border-radius: 4px;
+  padding: 0.4rem 0.6rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: #e6edf3;
+}
+.input:focus {
+  outline: none;
+  border-color: #209dd7;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.status-dot.connected {
+  background-color: #16a34a;
+  box-shadow: 0 0 6px #16a34a;
+}
+.status-dot.connecting {
+  background-color: #ecad0a;
+  box-shadow: 0 0 6px #ecad0a;
+}
+.status-dot.disconnected {
+  background-color: #ef4444;
+  box-shadow: 0 0 6px #ef4444;
+}

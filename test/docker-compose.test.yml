@@ -1,0 +1,72 @@
+# FinAlly E2E test harness.
+#
+# Spins up two containers:
+#   - `finally-test`: the production image, running with LLM_MOCK=true and an
+#                     ephemeral named volume (so each `up` starts from a fresh
+#                     seeded DB).
+#   - `playwright`:   the official Playwright image, runs the spec suite from
+#                     this directory against the app container.
+#
+# Usage (from project root):
+#   docker compose -f test/docker-compose.test.yml up \
+#       --build --abort-on-container-exit --exit-code-from playwright
+#
+# After the run, traces / screenshots / HTML report are written to
+# test/playwright-report/ and test/test-results/ (both git-ignored).
+#
+# To wipe the seeded DB between runs:
+#   docker compose -f test/docker-compose.test.yml down -v
+
+services:
+  finally-test:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: finally:test
+    container_name: finally-test
+    environment:
+      LLM_MOCK: "true"
+      # No OPENROUTER_API_KEY needed in mock mode — the handler short-circuits
+      # to the deterministic responses in app/llm/mock.py.
+      OPENROUTER_API_KEY: "test-not-used"
+      # Massive disabled — fall through to the simulator so prices stream
+      # without any external network dependency.
+      MASSIVE_API_KEY: ""
+      FINALLY_DB_PATH: "/app/data/finally.db"
+    volumes:
+      - finally-test-data:/app/data
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/health"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+      start_period: 5s
+
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.48.2-jammy
+    container_name: finally-playwright
+    depends_on:
+      finally-test:
+        condition: service_healthy
+    working_dir: /work
+    volumes:
+      - .:/work
+    environment:
+      # Tests target the app container by service name on the compose network.
+      BASE_URL: "http://finally-test:8000"
+      CI: "true"
+    # Install pinned deps (package-lock controls versions) and run the suite.
+    # `npm ci` is fast on subsequent runs because node_modules is preserved
+    # in the bind mount.
+    command: >
+      bash -c "
+        set -e &&
+        npm ci --no-audit --no-fund &&
+        npx playwright test
+      "
+
+volumes:
+  finally-test-data:
+    name: finally-test-data

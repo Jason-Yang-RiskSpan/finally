@@ -1,47 +1,40 @@
-# REVIEW.md — PLAN.md Review
+# REVIEW.md
 
 ## Findings
 
-### High
+### 1) High — Contradictory DB initialization contract
+- `PLAN.md` says backend lazily initializes DB on first request in Key Boundaries (`backend/db/`) ([PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:113)).
+- Later it says DB initialization is at startup only ([PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:218)) and decision log confirms startup-only ([PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:552)).
+- Risk: backend/frontend engineers may implement different lifecycle behavior, causing race conditions or duplicate init logic.
+- Recommendation: keep one source of truth (startup-only), remove/replace the lazy-init sentence in §4.
 
-1. **Conflicting DB initialization contract (`lazy on first request` vs `startup only`)**  
-   - `PLAN.md` states lazy initialization in Key Boundaries ([PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:113)), but later defines startup initialization as the decided behavior ([PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:218), [PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:552)).  
-   - Risk: backend teams may implement different init paths, creating duplicate seed logic or race conditions.
-   - Recommended fix: keep one source of truth (startup init), and remove/update the lazy-init sentence in §4.
+### 2) High — SSE resume requirement is underspecified/infeasible as written
+- Spec requires `Last-Event-ID` resume support ([PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:212), [PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:549)).
+- But no `id:` field format or replay buffer contract is defined in SSE payload requirements ([PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:206)).
+- Risk: implementations may claim resume support but cannot actually replay missed updates safely.
+- Recommendation: define SSE event `id` semantics (e.g., cache version) plus explicit replay window behavior.
 
-2. **SSE resume semantics are underspecified for `Last-Event-ID`**  
-   - The plan requires honoring `Last-Event-ID` ([PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:212), [PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:549)) but does not define event ID format, retention window, or behavior after process restart where in-memory history is lost.
-   - Risk: inconsistent client/server behavior and flaky reconnection tests.
-   - Recommended fix: specify exact semantics (e.g., monotonically increasing numeric IDs; if ID is older than buffer or server restarted, send current snapshot + continue).
+### 3) Medium — “Required API key” conflicts with mock/testing mode and first-run UX
+- `OPENROUTER_API_KEY` is labeled required ([PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:124)).
+- But `LLM_MOCK=true` is documented to avoid real API calls ([PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:405)) and first launch promises immediate usability ([PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:15)).
+- Risk: ambiguous startup validation logic (hard-fail without key vs allow app with degraded chat).
+- Recommendation: specify exact behavior: key required only when `LLM_MOCK=false` and chat endpoint returns clear degraded-mode error when missing.
 
-3. **Trade input validation rules are incomplete for numeric bounds**  
-   - API lists `{ticker, quantity, side}` ([PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:311)) and schema allows fractional `REAL` quantities ([PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:247), [PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:257)), but no explicit constraints for `quantity > 0`, finite numbers, max precision, or max order size.
-   - Risk: zero/negative/NaN/over-precision edge cases can create undefined portfolio math and DB inconsistencies.
-   - Recommended fix: define validation contract (e.g., `0 < quantity <= X`, decimal precision limit, reject non-finite values) and HTTP error codes.
+### 4) Medium — Schema rule conflicts with `users_profile` definition
+- Plan states “All tables use `INTEGER PRIMARY KEY AUTOINCREMENT` for their `id` column” ([PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:229)).
+- `users_profile` is defined with `user_id` as the primary key and no `id` column ([PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:231)).
+- Risk: migration/schema drift and test failures caused by contradictory DDL assumptions.
+- Recommendation: revise the rule to “all tables except `users_profile`” or add a surrogate `id` consistently.
 
-### Medium
-
-4. **Timestamp format is ambiguous (`ISO timestamp`)**  
-   - Multiple tables specify “ISO timestamp” ([PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:234), [PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:240), [PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:270), [PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:278)), and history endpoint uses `?since=<iso8601>` ([PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:312)) without timezone/precision rules.
-   - Risk: parsing drift across frontend/backend/tests.
-   - Recommended fix: standardize on UTC RFC3339 (e.g., `2026-05-03T15:04:05.123Z`) and document parse/validation behavior.
-
-5. **Environment requirements are contradictory for local/test modes**  
-   - `OPENROUTER_API_KEY` is marked required ([PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:124)), while `LLM_MOCK=true` explicitly supports development without an API key ([PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:405-408)).
-   - Risk: startup checks may incorrectly hard-fail in mock mode.
-   - Recommended fix: clarify conditional requirement: API key required only when `LLM_MOCK=false`.
-
-6. **"Single Docker command opens browser" is not universally true**  
-   - First-launch section promises browser auto-open ([PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:15)), while scripts only say “optionally opens the browser” ([PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:482)).
-   - Risk: acceptance criteria mismatch and failed expectations in CI/headless environments.
-   - Recommended fix: reword to “prints URL; scripts may open browser when supported.”
+### 5) Low — Single-command startup claim vs env dependency clarity
+- UX says user runs one Docker command and immediately uses app ([PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:15)).
+- Plan also implies LLM feature depends on `.env` key configuration ([PLAN.md](/Users/jasonyang/Documents/finally/planning/PLAN.md:140)).
+- Risk: unclear onboarding expectations if chat is broken on first launch without key.
+- Recommendation: explicitly state expected first-run behavior without API key (chat disabled with banner, or default `LLM_MOCK=true` for local demo).
 
 ## Open Questions
-
-1. Should `/api/watchlist/{ticker}` be case-insensitive on input but normalized to uppercase at persistence boundary?
-2. Should `/api/portfolio/history` return ascending or descending time order, and is there a max row limit/default window?
-3. For failed LLM actions in `actions` JSON, should `reason` be from a fixed enum for frontend-safe rendering/tests?
+- Should chat endpoint be available in degraded mode when `OPENROUTER_API_KEY` is absent and `LLM_MOCK=false`, or should startup fail fast?
+- For SSE resume, is lossless replay required, or is best-effort latest-state sync acceptable?
 
 ## Summary
-
-The plan is strong and implementation-oriented, but a few contract-level ambiguities (init path, SSE resume, trade validation) are likely to cause divergent behavior across agents unless clarified before coding proceeds.
+The plan is strong and implementation-oriented, but a few conflicting contracts (DB init timing, SSE resume semantics, and env/key requirements) should be resolved before parallel agent implementation to avoid divergence and rework.
